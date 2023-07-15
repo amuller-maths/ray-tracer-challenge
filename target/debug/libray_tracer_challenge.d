@@ -1,0 +1,1 @@
+/home/alain/dev/ray-tracer-challenge/target/debug/libray_tracer_challenge.rlib: /home/alain/dev/ray-tracer-challenge/src/canvas.rs /home/alain/dev/ray-tracer-challenge/src/geometry.rs /home/alain/dev/ray-tracer-challenge/src/lib.rs /home/alain/dev/ray-tracer-challenge/src/matrix.rs /home/alain/dev/ray-tracer-challenge/src/transform.rs
