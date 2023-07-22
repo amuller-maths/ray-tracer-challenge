@@ -2,6 +2,8 @@ use std::ops::{Add, Mul, Sub};
 
 use image::{ImageBuffer, Rgb, RgbImage};
 
+use crate::macros::AlmostEq;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color(pub f64, pub f64, pub f64);
 
@@ -63,6 +65,24 @@ impl From<Rgb<u8>> for Color {
     }
 }
 
+impl Color {
+    pub fn white() -> Self {
+        Self(1., 1., 1.)
+    }
+    pub fn red() -> Self {
+        Self(1., 0., 0.)
+    }
+    pub fn green() -> Self {
+        Self(0., 1., 0.)
+    }
+    pub fn blue() -> Self {
+        Self(0., 0., 1.)
+    }
+    pub fn black() -> Self {
+        Self(0., 0., 0.)
+    }
+}
+
 pub struct Canvas {
     width: u32,
     height: u32,
@@ -75,9 +95,9 @@ impl Canvas {
         match color {
             None => {}
             Some(color) => {
-                for i in 0..height {
-                    for j in 0..width {
-                        pixels.put_pixel(j, i, Rgb::from(color));
+                for j in 0..height {
+                    for i in 0..width {
+                        pixels.put_pixel(i, j, Rgb::from(color));
                     }
                 }
             }
@@ -90,11 +110,11 @@ impl Canvas {
     }
 
     pub fn write_pixel(&mut self, x: u32, y: u32, color: Color) {
-        self.pixels.put_pixel(y, x, Rgb::from(color));
+        self.pixels.put_pixel(x, y, Rgb::from(color));
     }
 
-    fn pixel_at(&self, x: u32, y: u32) -> Color {
-        Color::from(self.pixels[(y, x)])
+    pub fn pixel_at(&self, x: u32, y: u32) -> Color {
+        Color::from(self.pixels[(x, y)])
     }
 
     pub fn save(&self, path: &str) -> image::ImageResult<()> {
@@ -102,46 +122,71 @@ impl Canvas {
     }
 }
 
+impl AlmostEq for Color {
+    fn almost_eq(self, other: Self, eps: f64) -> bool {
+        (self.0 - other.0).abs() < eps
+            && (self.1 - other.1).abs() < eps
+            && (self.2 - other.2).abs() < eps
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::assert_almost_eq;
+
     use super::*;
-    fn eq(c1: Color, c2: Color) -> bool {
-        (c1.0 - c2.0).abs() < 1e6 && (c1.1 - c2.1).abs() < 1e6 && (c1.2 - c2.2).abs() < 1e6
-    }
     #[test]
-    fn op_colors() {
+    fn adding_colors() {
         let a = Color(0.9, 0.6, 0.75);
         let b = Color(0.7, 0.1, 0.25);
-        assert!(eq(a * 2., Color(1.8, 1.2, 1.5)));
-        assert!(eq(a + b, Color(1.6, 0.7, 1.)));
-        assert!(eq(a - b, Color(0.2, 0.5, 0.5)));
+        assert_almost_eq!(a + b, Color(1.6, 0.7, 1.));
     }
 
     #[test]
-    fn create_canvas() {
+    fn substracting_colors() {
+        let a = Color(0.9, 0.6, 0.75);
+        let b = Color(0.7, 0.1, 0.25);
+        assert_almost_eq!(a - b, Color(0.2, 0.5, 0.5));
+    }
+
+    #[test]
+    fn multiplying_a_color_by_a_scalar() {
+        let a = Color(0.9, 0.6, 0.75);
+        assert_almost_eq!(a * 2., Color(1.8, 1.2, 1.5));
+    }
+
+    #[test]
+    fn multiplying_colors() {
+        let a = Color(1., 0.2, 0.4);
+        let b = Color(0.9, 1., 0.1);
+        assert_almost_eq!(a * b, Color(0.9, 0.2, 0.04));
+    }
+
+    #[test]
+    fn creating_a_canvas() {
         let c = Canvas::new(10, 20, None);
         assert_eq!(c.width, 10);
         assert_eq!(c.height, 20);
-        for i in 0..c.height {
-            for j in 0..c.width {
+        for j in 0..c.height {
+            for i in 0..c.width {
                 assert_eq!(c.pixel_at(i, j), Color(0., 0., 0.))
             }
         }
     }
 
     #[test]
-    fn create_canvas_red() {
+    fn creating_a_red_canvas() {
         let c = Canvas::new(10, 20, Some(Color(1., 0., 0.)));
         assert_eq!(c.width, 10);
         assert_eq!(c.height, 20);
-        for i in 0..c.height {
-            for j in 0..c.width {
+        for j in 0..c.height {
+            for i in 0..c.width {
                 assert_eq!(c.pixel_at(i, j), Color(1., 0., 0.))
             }
         }
     }
     #[test]
-    fn write_canvas() {
+    fn writing_pixels_to_a_canvas() {
         let mut c = Canvas::new(10, 20, None);
         let red = Color(1., 0., 0.);
         c.write_pixel(2, 3, red);
@@ -149,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn save_canvas() {
+    fn saving_a_canvas() {
         let c = Canvas::new(100, 100, Some(Color(1., 0., 0.)));
         c.save("img.png").unwrap();
     }

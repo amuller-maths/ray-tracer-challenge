@@ -1,4 +1,7 @@
-use crate::geometry::Tuple;
+use crate::{
+    geometry::{Point, Vector},
+    macros::AlmostEq,
+};
 use std::ops::Mul;
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
@@ -14,7 +17,7 @@ impl Matrix {
         ])
     }
 
-    fn transpose(self) -> Self {
+    pub fn transpose(self) -> Self {
         let Matrix(m) = self;
         Self([
             [m[0][0], m[1][0], m[2][0], m[3][0]],
@@ -23,7 +26,7 @@ impl Matrix {
             [m[0][3], m[1][3], m[2][3], m[3][3]],
         ])
     }
-    fn inverse(self) -> Self {
+    pub fn inverse(self) -> Self {
         let mut indxc: [usize; 4] = [0; 4];
         let mut indxr: [usize; 4] = [0; 4];
         let mut ipiv: [usize; 4] = [0; 4];
@@ -106,41 +109,54 @@ impl Mul for Matrix {
     }
 }
 
-impl<T> Mul<T> for Matrix
-where
-    T: Tuple,
-{
-    type Output = T;
+impl Mul<Point> for Matrix {
+    type Output = Point;
 
-    fn mul(self, rhs: T) -> Self::Output {
+    fn mul(self, rhs: Point) -> Self::Output {
         let Matrix(a) = self;
-        Self::Output::new(
-            a[0][0] * rhs.x() + a[0][1] * rhs.y() + a[0][2] * rhs.z() + a[0][3] * rhs.w(),
-            a[1][0] * rhs.x() + a[1][1] * rhs.y() + a[1][2] * rhs.z() + a[1][3] * rhs.w(),
-            a[2][0] * rhs.x() + a[2][1] * rhs.y() + a[2][2] * rhs.z() + a[2][3] * rhs.w(),
+        Point(
+            a[0][0] * rhs.0 + a[0][1] * rhs.1 + a[0][2] * rhs.2 + a[0][3] * 1.,
+            a[1][0] * rhs.0 + a[1][1] * rhs.1 + a[1][2] * rhs.2 + a[1][3] * 1.,
+            a[2][0] * rhs.0 + a[2][1] * rhs.1 + a[2][2] * rhs.2 + a[2][3] * 1.,
         )
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::geometry::Vector;
+impl Mul<Vector> for Matrix {
+    type Output = Vector;
 
-    use super::*;
-    fn almost_eq(a: Matrix, b: Matrix) -> bool {
-        let Matrix(a) = a;
-        let Matrix(b) = b;
+    fn mul(self, rhs: Vector) -> Self::Output {
+        let Matrix(a) = self;
+        Vector(
+            a[0][0] * rhs.0 + a[0][1] * rhs.1 + a[0][2] * rhs.2 + a[0][3] * 0.,
+            a[1][0] * rhs.0 + a[1][1] * rhs.1 + a[1][2] * rhs.2 + a[1][3] * 0.,
+            a[2][0] * rhs.0 + a[2][1] * rhs.1 + a[2][2] * rhs.2 + a[2][3] * 0.,
+        )
+    }
+}
+
+impl AlmostEq for Matrix {
+    fn almost_eq(self, other: Self, eps: f64) -> bool {
+        let Matrix(a) = self;
+        let Matrix(b) = other;
         for i in 0..4 {
             for j in 0..4 {
-                if (a[i][j] - b[i][j]).abs() > 1e6 {
+                if (a[i][j] - b[i][j]).abs() > eps {
                     return false;
                 }
             }
         }
         true
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_almost_eq, geometry::Vector};
+
+    use super::*;
     #[test]
-    fn mul_matrices() {
+    fn multiplying_two_matrices() {
         let a = Matrix([
             [1., 2., 3., 4.],
             [5., 6., 7., 8.],
@@ -164,7 +180,7 @@ mod tests {
         );
     }
     #[test]
-    fn mul_tuple() {
+    fn a_matrix_multipied_by_a_vector() {
         let a = Matrix([
             [1., 2., 3., 4.],
             [5., 6., 7., 8.],
@@ -176,7 +192,7 @@ mod tests {
         assert_eq!(a * v, Vector(14., 38., 46.))
     }
     #[test]
-    fn mul_id() {
+    fn multiplying_a_matrix_by_the_identity_matrix() {
         let a = Matrix([
             [1., 2., 3., 4.],
             [5., 6., 7., 8.],
@@ -188,7 +204,7 @@ mod tests {
         assert_eq!(Matrix::id() * a, a);
     }
     #[test]
-    fn test_transpose() {
+    fn transposing_a_matrix() {
         let a = Matrix([
             [1., 2., 3., 4.],
             [5., 6., 7., 8.],
@@ -207,7 +223,23 @@ mod tests {
     }
 
     #[test]
-    fn test_inverse() {
+    fn calculating_the_inverse_of_a_matrix() {
+        let a = Matrix([
+            [-5., 2., 6., -8.],
+            [1., -5., 1., 8.],
+            [7., 7., -6., -7.],
+            [1., -3., 7., 4.],
+        ]);
+        let b = Matrix([
+            [0.21805, 0.45113, 0.24060, -0.04511],
+            [-0.80827, -1.45677, -0.44361, 0.52068],
+            [-0.07895, -0.22368, -0.05263, 0.19737],
+            [-0.52256, -0.81391, -0.30075, 0.30639],
+        ]);
+        assert_almost_eq!(a.inverse(), b);
+    }
+    #[test]
+    fn calculating_the_inverse_of_another_matrix() {
         let a = Matrix([
             [21., 14., 8., 3.],
             [27., 19., 11., 4.],
@@ -220,6 +252,23 @@ mod tests {
             [1., -3., 8., -23.],
             [0., 1., -5., 17.],
         ]);
-        assert!(almost_eq(a.inverse(), b));
+        assert_almost_eq!(a.inverse(), b);
+    }
+
+    #[test]
+    fn calculating_the_inverse_of_a_thid_matrix() {
+        let a = Matrix([
+            [8., -5., 9., 2.],
+            [7., 5., 6., 1.],
+            [-6., 0., 9., 6.],
+            [-3., 0., -9., -4.],
+        ]);
+        let b = Matrix([
+            [-0.15385, -0.15385, -0.28205, -0.53846],
+            [-0.07692, 0.12308, 0.02564, 0.03077],
+            [0.35897, 0.35897, 0.43590, 0.92308],
+            [-0.69231, -0.69231, -0.76923, -1.92308],
+        ]);
+        assert_almost_eq!(a.inverse(), b);
     }
 }

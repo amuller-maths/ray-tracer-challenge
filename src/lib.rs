@@ -1,8 +1,13 @@
+pub mod camera;
 pub mod canvas;
 pub mod geometry;
 pub mod intersection;
+pub mod light;
+pub mod macros;
+pub mod material;
 pub mod matrix;
 pub mod object;
 pub mod ray;
 pub mod shape;
 pub mod transform;
+pub mod world;
