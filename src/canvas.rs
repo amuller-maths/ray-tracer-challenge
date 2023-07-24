@@ -84,9 +84,9 @@ impl Color {
 }
 
 pub struct Canvas {
+    pixels: RgbImage,
     width: u32,
     height: u32,
-    pixels: RgbImage,
 }
 
 impl Canvas {

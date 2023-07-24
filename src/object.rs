@@ -1,8 +1,10 @@
 use crate::{
+    canvas::Color,
     geometry::{Point, Vector},
     intersection::{Intersection, Intersections},
+    macros::EPSILON,
     material::Material,
-    matrix::Matrix,
+    pattern::Pattern,
     ray::Ray,
     transform::{Transform, Transformable},
 };
@@ -10,6 +12,7 @@ use crate::{
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Shape {
     Sphere,
+    Plane,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -23,16 +26,57 @@ impl Object {
     pub fn sphere() -> Self {
         Self {
             shape: Shape::Sphere,
-            transform: Transform {
-                m: Matrix::id(),
-                minv: Matrix::id(),
-            },
+            transform: Transform::default(),
             material: Material::default(),
         }
     }
 
-    pub fn set_transform(&mut self, t: Transform) {
+    pub fn plane() -> Self {
+        Self {
+            shape: Shape::Plane,
+            transform: Transform::default(),
+            material: Material::default(),
+        }
+    }
+
+    pub fn set_transform(&mut self, t: Transform) -> Self {
         self.transform = t;
+        *self
+    }
+
+    pub fn set_material(&mut self, m: Material) -> Self {
+        self.material = m;
+        *self
+    }
+
+    pub fn set_color(&mut self, c: Color) -> Self {
+        self.material.color = c;
+        *self
+    }
+
+    pub fn set_ambient(&mut self, a: f64) -> Self {
+        self.material.ambient = a;
+        *self
+    }
+
+    pub fn set_diffuse(&mut self, d: f64) -> Self {
+        self.material.diffuse = d;
+        *self
+    }
+
+    pub fn set_specular(&mut self, s: f64) -> Self {
+        self.material.specular = s;
+        *self
+    }
+
+    pub fn set_shininess(&mut self, s: f64) -> Self {
+        self.material.shininess = s;
+        *self
+    }
+
+    pub fn set_pattern(&mut self, p: Pattern) -> Self {
+        self.material.pattern = Some(p);
+        *self
     }
 
     pub fn intersect(self, ray: Ray) -> Intersections {
@@ -59,18 +103,32 @@ impl Object {
                     xs
                 }
             }
+            Shape::Plane => {
+                let mut xs: Intersections = Intersections(Vec::with_capacity(1));
+                if local_ray.direction.1.abs() >= EPSILON {
+                    xs.push(Intersection {
+                        t: -local_ray.origin.1 / local_ray.direction.1,
+                        object: self,
+                    })
+                }
+                xs
+            }
         }
     }
 
     pub fn normal_at(self, p: Point) -> Vector {
+        let local_point = self.transform.minv * p;
+        let local_normal: Vector;
         match self.shape {
             Shape::Sphere => {
-                let object_point = self.transform.minv * p;
-                let object_normal = object_point - Point(0., 0., 0.);
-                let world_normal = self.transform.minv.transpose() * object_normal;
-                world_normal.normalize()
+                local_normal = local_point - Point(0., 0., 0.);
+            }
+            Shape::Plane => {
+                local_normal = Vector(0., 1., 0.);
             }
         }
+        let world_normal = self.transform.minv.transpose() * local_normal;
+        world_normal.normalize()
     }
 }
 #[cfg(test)]
@@ -193,5 +251,61 @@ mod tests {
             s.normal_at(Point(0., 2f64.sqrt() / 2., -2f64.sqrt() / 2.)),
             Vector(0., 0.97014, -0.24254)
         ));
+    }
+    #[test]
+    fn the_normal_of_a_plane_is_constant_everywhere() {
+        let p = Object::plane();
+        let n1 = p.normal_at(Point(0., 0., 0.));
+        let n2 = p.normal_at(Point(10., 0., -10.));
+        let n3 = p.normal_at(Point(-5., 0., 150.));
+        assert_eq!(n1, Vector(0., 1., 0.));
+        assert_eq!(n2, Vector(0., 1., 0.));
+        assert_eq!(n3, Vector(0., 1., 0.));
+    }
+
+    #[test]
+    fn intersect_a_ray_parallel_to_the_plane() {
+        let p = Object::plane();
+        let r = Ray {
+            origin: Point(0., 10., 0.),
+            direction: Vector(0., 0., 1.),
+        };
+        let Intersections(xs) = p.intersect(r);
+        assert_eq!(xs.len(), 0);
+    }
+    #[test]
+    fn intersect_with_a_coplanar_ray() {
+        let p = Object::plane();
+        let r = Ray {
+            origin: Point(0., 0., 0.),
+            direction: Vector(0., 0., 1.),
+        };
+        let Intersections(xs) = p.intersect(r);
+        assert_eq!(xs.len(), 0);
+    }
+    #[test]
+    fn a_ray_intersecting_a_plane_from_above() {
+        let p = Object::plane();
+        let r = Ray {
+            origin: Point(0., 1., 0.),
+            direction: Vector(0., -1., 0.),
+        };
+        let Intersections(xs) = p.intersect(r);
+        assert_eq!(xs.len(), 1);
+        assert_eq!(xs[0].t, 1.);
+        assert_eq!(xs[0].object, p);
+    }
+
+    #[test]
+    fn a_ray_intersecting_a_plane_from_below() {
+        let p = Object::plane();
+        let r = Ray {
+            origin: Point(0., -1., 0.),
+            direction: Vector(0., 1., 0.),
+        };
+        let Intersections(xs) = p.intersect(r);
+        assert_eq!(xs.len(), 1);
+        assert_eq!(xs[0].t, 1.);
+        assert_eq!(xs[0].object, p);
     }
 }

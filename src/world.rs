@@ -53,8 +53,9 @@ impl World {
         (self.lights).iter().fold(Color::black(), |acc, light| {
             let shadowed = self.is_shadowed(light.position, comps.over_point);
             acc + comps.object.material.lighting(
+                &comps.object,
                 *light,
-                comps.point,
+                comps.over_point,
                 comps.eyev,
                 comps.normalv,
                 shadowed,
@@ -195,8 +196,8 @@ mod tests {
             intensity: Color::white(),
         };
         let s1 = Object::sphere();
-        let mut s2 = Object::sphere();
-        s2.set_transform(Transform::translation(0., 0., 10.));
+        let s2 = Object::sphere().set_transform(Transform::translation(0., 0., 10.));
+
         let w = World {
             lights: vec![light],
             objects: vec![s1, s2],

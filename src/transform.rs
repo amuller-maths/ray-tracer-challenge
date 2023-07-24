@@ -116,8 +116,6 @@ impl Transform {
         let upn = up.normalize();
         let left = forward.cross(upn);
         let true_up = left.cross(forward);
-        let left2 = left.normalize();
-        let up2 = true_up.normalize();
         let m = Matrix([
             [left.0, left.1, left.2, 0.],
             [true_up.0, true_up.1, true_up.2, 0.],

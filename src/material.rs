@@ -1,6 +1,8 @@
 use crate::canvas::Color;
 use crate::geometry::{Point, Vector};
 use crate::light::PointLight;
+use crate::object::Object;
+use crate::pattern::Pattern;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Material {
@@ -9,6 +11,7 @@ pub struct Material {
     pub diffuse: f64,
     pub specular: f64,
     pub shininess: f64,
+    pub pattern: Option<Pattern>,
 }
 
 impl Default for Material {
@@ -19,6 +22,7 @@ impl Default for Material {
             diffuse: 0.9,
             specular: 0.9,
             shininess: 200.,
+            pattern: None,
         }
     }
 }
@@ -26,13 +30,23 @@ impl Default for Material {
 impl Material {
     pub fn lighting(
         self,
+        object: &Object,
         light: PointLight,
         point: Point,
         eyev: Vector,
         normalv: Vector,
         in_shadow: bool,
     ) -> Color {
-        let effective_color = self.color * light.intensity;
+        let color: Color;
+        match self.pattern {
+            Some(p) => {
+                color = p.pattern_at_object(object, point);
+            }
+            None => {
+                color = self.color;
+            }
+        }
+        let effective_color = color * light.intensity;
         let lightv = (light.position - point).normalize();
         let ambient = effective_color * self.ambient;
         let light_dot_normal = lightv.dot(normalv);
@@ -54,6 +68,35 @@ impl Material {
         }
         ambient + diffuse + specular
     }
+    pub fn set_color(&mut self, c: Color) -> Self {
+        self.color = c;
+        *self
+    }
+
+    pub fn set_ambient(&mut self, a: f64) -> Self {
+        self.ambient = a;
+        *self
+    }
+
+    pub fn set_diffuse(&mut self, d: f64) -> Self {
+        self.diffuse = d;
+        *self
+    }
+
+    pub fn set_specular(&mut self, s: f64) -> Self {
+        self.specular = s;
+        *self
+    }
+
+    pub fn set_shininess(&mut self, s: f64) -> Self {
+        self.shininess = s;
+        *self
+    }
+
+    pub fn set_pattern(&mut self, p: Pattern) -> Self {
+        self.pattern = Some(p);
+        *self
+    }
 }
 
 #[cfg(test)]
@@ -70,6 +113,7 @@ mod tests {
     }
     #[test]
     fn lighting_with_the_eye_between_the_light_and_the_surface() {
+        let object = Object::sphere();
         let m = Material::default();
         let position = Point(0., 0., 0.);
         let eyev = Vector(0., 0., -1.);
@@ -78,11 +122,12 @@ mod tests {
             position: Point(0., 0., -10.),
             intensity: Color(1., 1., 1.),
         };
-        let result = m.lighting(light, position, eyev, normalv, false);
+        let result = m.lighting(&object, light, position, eyev, normalv, false);
         assert_eq!(result, Color(1.9, 1.9, 1.9));
     }
     #[test]
     fn lighting_with_the_eye_between_light_and_surface_eye_offset_45_degrees() {
+        let object = Object::sphere();
         let m = Material::default();
         let position = Point(0., 0., 0.);
         let eyev = Vector(0., 2f64.sqrt() / 2., -2f64.sqrt() / 2.);
@@ -91,11 +136,12 @@ mod tests {
             position: Point(0., 0., -10.),
             intensity: Color(1., 1., 1.),
         };
-        let result = m.lighting(light, position, eyev, normalv, false);
+        let result = m.lighting(&object, light, position, eyev, normalv, false);
         assert_eq!(result, Color(1.0, 1.0, 1.0));
     }
     #[test]
     fn lighting_with_eye_opposite_surface_light_offset_45_degrees() {
+        let object = Object::sphere();
         let m = Material::default();
         let position = Point(0., 0., 0.);
         let eyev = Vector(0., 0., -1.);
@@ -104,11 +150,12 @@ mod tests {
             position: Point(0., 10., -10.),
             intensity: Color(1., 1., 1.),
         };
-        let result = m.lighting(light, position, eyev, normalv, false);
+        let result = m.lighting(&object, light, position, eyev, normalv, false);
         assert!(almost_eq(result, Color(0.7364, 0.7364, 0.7364)));
     }
     #[test]
     fn lighting_with_eye_in_the_path_of_the_reflection_vector() {
+        let object = Object::sphere();
         let m = Material::default();
         let position = Point(0., 0., 0.);
         let eyev = Vector(0., -2f64.sqrt() / 2., -2f64.sqrt() / 2.);
@@ -117,11 +164,12 @@ mod tests {
             position: Point(0., 10., -10.),
             intensity: Color(1., 1., 1.),
         };
-        let result = m.lighting(light, position, eyev, normalv, false);
+        let result = m.lighting(&object, light, position, eyev, normalv, false);
         assert!(almost_eq(result, Color(1.6364, 1.6364, 1.6364)));
     }
     #[test]
     fn lighting_with_the_light_behind_the_surface() {
+        let object = Object::sphere();
         let m = Material::default();
         let position = Point(0., 0., 0.);
         let eyev = Vector(0., 0., -1.);
@@ -130,11 +178,12 @@ mod tests {
             position: Point(0., 0., 10.),
             intensity: Color(1., 1., 1.),
         };
-        let result = m.lighting(light, position, eyev, normalv, false);
+        let result = m.lighting(&object, light, position, eyev, normalv, false);
         assert_eq!(result, Color(0.1, 0.1, 0.1));
     }
     #[test]
     fn lighting_with_the_surface_in_shadow() {
+        let object = Object::sphere();
         let m = Material::default();
         let position = Point(0., 0., 0.);
         let eyev = Vector(0., 0., -1.);
@@ -144,7 +193,33 @@ mod tests {
             intensity: Color(1., 1., 1.),
         };
         let in_shadow = true;
-        let result = m.lighting(light, position, eyev, normalv, in_shadow);
+        let result = m.lighting(&object, light, position, eyev, normalv, in_shadow);
         assert_eq!(result, Color(0.1, 0.1, 0.1));
+    }
+    #[test]
+    fn lighting_with_a_pattern_applied() {
+        let object = Object::sphere();
+        let m = Material::default()
+            .set_pattern(Pattern::stripe_pattern(
+                Color(1., 1., 1.),
+                Color(0., 0., 0.),
+            ))
+            .set_ambient(1.)
+            .set_diffuse(0.)
+            .set_specular(0.);
+        let eyev = Vector(0., 0., -1.);
+        let normalv = Vector(0., 0., -1.);
+        let light = PointLight {
+            position: Point(0., 0., -10.),
+            intensity: Color(1., 1., 1.),
+        };
+        assert_eq!(
+            m.lighting(&object, light, Point(0.9, 0., 0.), eyev, normalv, false),
+            Color(1., 1., 1.)
+        );
+        assert_eq!(
+            m.lighting(&object, light, Point(1.1, 0., 0.), eyev, normalv, false),
+            Color(0., 0., 0.)
+        );
     }
 }
