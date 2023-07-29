@@ -17,6 +17,7 @@ enum PatternType {
     Gradient(Color, Color),
     Ring(Color, Color),
     Checkers(Color, Color),
+    Test,
 }
 
 impl Pattern {
@@ -48,6 +49,7 @@ impl Pattern {
                     b
                 }
             }
+            PatternType::Test => Color(p.0, p.1, p.2),
         }
     }
 
@@ -86,6 +88,13 @@ impl Pattern {
     pub fn checkers_pattern(a: Color, b: Color) -> Self {
         Self {
             pattern: PatternType::Checkers(a, b),
+            transform: Transform::default(),
+        }
+    }
+
+    pub fn test_pattern() -> Self {
+        Self {
+            pattern: PatternType::Test,
             transform: Transform::default(),
         }
     }

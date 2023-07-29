@@ -55,8 +55,8 @@ mod tests {
         };
         let Intersections(xs) = s.intersect(ray);
         assert_eq!(xs.len(), 2);
-        assert_eq!(xs[0], Intersection { t: 4., object: s });
-        assert_eq!(xs[1], Intersection { t: 6., object: s });
+        assert_eq!(xs[0], Intersection { t: 4., object: &s });
+        assert_eq!(xs[1], Intersection { t: 6., object: &s });
     }
     #[test]
     fn a_ray_intersects_a_sphere_at_a_tangent() {
@@ -67,8 +67,8 @@ mod tests {
         };
         let Intersections(xs) = s.intersect(ray);
         assert_eq!(xs.len(), 2);
-        assert_eq!(xs[0], Intersection { t: 5., object: s });
-        assert_eq!(xs[1], Intersection { t: 5., object: s });
+        assert_eq!(xs[0], Intersection { t: 5., object: &s });
+        assert_eq!(xs[1], Intersection { t: 5., object: &s });
     }
     #[test]
     fn a_ray_misses_a_sphere() {
@@ -89,8 +89,8 @@ mod tests {
         };
         let Intersections(xs) = s.intersect(ray);
         assert_eq!(xs.len(), 2);
-        assert_eq!(xs[0], Intersection { t: -1., object: s });
-        assert_eq!(xs[1], Intersection { t: 1., object: s });
+        assert_eq!(xs[0], Intersection { t: -1., object: &s });
+        assert_eq!(xs[1], Intersection { t: 1., object: &s });
     }
     #[test]
     fn a_sphere_is_behind_a_ray() {
@@ -101,8 +101,8 @@ mod tests {
         };
         let Intersections(xs) = s.intersect(ray);
         assert_eq!(xs.len(), 2);
-        assert_eq!(xs[0], Intersection { t: -6., object: s });
-        assert_eq!(xs[1], Intersection { t: -4., object: s });
+        assert_eq!(xs[0], Intersection { t: -6., object: &s });
+        assert_eq!(xs[1], Intersection { t: -4., object: &s });
     }
     #[test]
     fn translating_a_ray() {

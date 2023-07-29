@@ -11,6 +11,9 @@ pub struct Material {
     pub diffuse: f64,
     pub specular: f64,
     pub shininess: f64,
+    pub reflective: f64,
+    pub transparency: f64,
+    pub refractive_index: f64,
     pub pattern: Option<Pattern>,
 }
 
@@ -22,6 +25,9 @@ impl Default for Material {
             diffuse: 0.9,
             specular: 0.9,
             shininess: 200.,
+            reflective: 0.,
+            transparency: 0.,
+            refractive_index: 1.,
             pattern: None,
         }
     }
@@ -90,6 +96,21 @@ impl Material {
 
     pub fn set_shininess(&mut self, s: f64) -> Self {
         self.shininess = s;
+        *self
+    }
+
+    pub fn set_reflective(&mut self, r: f64) -> Self {
+        self.reflective = r;
+        *self
+    }
+
+    pub fn set_transparency(&mut self, t: f64) -> Self {
+        self.transparency = t;
+        *self
+    }
+
+    pub fn set_refractive_index(&mut self, ri: f64) -> Self {
+        self.refractive_index = ri;
         *self
     }
 

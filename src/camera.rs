@@ -7,8 +7,8 @@ use crate::{
 };
 
 pub struct Camera {
-    pub hsize: u32,
-    pub vsize: u32,
+    pub hsize: usize,
+    pub vsize: usize,
     pub field_of_view: f64,
     pub transform: Transform,
     pub pixel_size: f64,
@@ -17,7 +17,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(hsize: u32, vsize: u32, field_of_view: f64, t: Option<Transform>) -> Self {
+    pub fn new(hsize: usize, vsize: usize, field_of_view: f64, t: Option<Transform>) -> Self {
         let half_view = (field_of_view / 2.).tan();
         let aspect = (hsize as f64) / (vsize as f64);
         let half_width: f64;
@@ -53,7 +53,7 @@ impl Camera {
 }
 
 impl Camera {
-    fn ray_for_pixel(&self, x: u32, y: u32) -> Ray {
+    fn ray_for_pixel(&self, x: usize, y: usize) -> Ray {
         let xoffset = (x as f64 + 0.5) * self.pixel_size;
         let yoffset = (y as f64 + 0.5) * self.pixel_size;
         let world_x = self.half_width - xoffset;
@@ -69,7 +69,7 @@ impl Camera {
         for y in 0..self.vsize {
             for x in 0..self.hsize {
                 let ray = self.ray_for_pixel(x, y);
-                let color = world.color_at(ray);
+                let color = world.color_at(ray, 5);
                 image.write_pixel(x, y, color);
             }
         }
@@ -83,7 +83,6 @@ mod tests {
         canvas::Color,
         geometry::{Point, Vector},
         macros::AlmostEq,
-        world::World,
     };
     use std::f64::consts::PI;
 

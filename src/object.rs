@@ -9,7 +9,9 @@ use crate::{
     transform::{Transform, Transformable},
 };
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+use uuid::Uuid;
+
+#[derive(Debug, PartialEq, Clone, Copy, Hash)]
 pub enum Shape {
     Sphere,
     Plane,
@@ -20,14 +22,29 @@ pub struct Object {
     pub shape: Shape,
     pub transform: Transform,
     pub material: Material,
+    pub uuid: Uuid,
 }
 
-impl Object {
+impl<'a> Object {
     pub fn sphere() -> Self {
         Self {
             shape: Shape::Sphere,
             transform: Transform::default(),
             material: Material::default(),
+            uuid: Uuid::new_v4(),
+        }
+    }
+
+    pub fn glass_sphere() -> Self {
+        Self {
+            shape: Shape::Sphere,
+            transform: Transform::default(),
+            material: Material {
+                transparency: 1.,
+                refractive_index: 1.5,
+                ..Material::default()
+            },
+            uuid: Uuid::new_v4(),
         }
     }
 
@@ -36,6 +53,7 @@ impl Object {
             shape: Shape::Plane,
             transform: Transform::default(),
             material: Material::default(),
+            uuid: Uuid::new_v4(),
         }
     }
 
@@ -74,31 +92,48 @@ impl Object {
         *self
     }
 
+    pub fn set_reflective(&mut self, r: f64) -> Self {
+        self.material.reflective = r;
+        *self
+    }
+
+    pub fn set_transparency(&mut self, t: f64) -> Self {
+        self.material.transparency = t;
+        *self
+    }
+
+    pub fn set_refractive_index(&mut self, ri: f64) -> Self {
+        self.material.refractive_index = ri;
+        *self
+    }
+
     pub fn set_pattern(&mut self, p: Pattern) -> Self {
         self.material.pattern = Some(p);
         *self
     }
 
-    pub fn intersect(self, ray: Ray) -> Intersections {
+    pub fn intersect(&'a self, ray: Ray) -> Intersections<'a> {
         let local_ray = ray.transform(self.transform.inverse());
         match self.shape {
             Shape::Sphere => {
-                let mut xs: Intersections = Intersections(Vec::with_capacity(2));
+                let mut xs: Intersections<'a> = Intersections(Vec::with_capacity(2));
                 let sphere_to_ray = local_ray.origin - Point(0., 0., 0.);
                 let a = local_ray.direction.dot(local_ray.direction);
                 let b = 2f64 * local_ray.direction.dot(sphere_to_ray);
                 let c = sphere_to_ray.dot(sphere_to_ray) - 1.;
                 let discriminant = b.powi(2) - 4. * a * c;
+
                 if discriminant < 0. {
                     xs
                 } else {
                     xs.push(Intersection {
                         t: (-b - discriminant.sqrt()) / (2. * a),
-                        object: self,
+                        object: &self,
                     });
+
                     xs.push(Intersection {
                         t: (-b + discriminant.sqrt()) / (2. * a),
-                        object: self,
+                        object: &self,
                     });
                     xs
                 }
@@ -108,7 +143,7 @@ impl Object {
                 if local_ray.direction.1.abs() >= EPSILON {
                     xs.push(Intersection {
                         t: -local_ray.origin.1 / local_ray.direction.1,
-                        object: self,
+                        object: &self,
                     })
                 }
                 xs
@@ -149,6 +184,7 @@ mod tests {
     #[test]
     fn a_default_sphere() {
         let s = Object::sphere();
+        let uuid = s.uuid;
         assert_eq!(
             s,
             Object {
@@ -157,13 +193,15 @@ mod tests {
                     m: Matrix::id(),
                     minv: Matrix::id()
                 },
-                material: Material::default()
+                material: Material::default(),
+                uuid
             }
         );
     }
     #[test]
     fn changing_a_spheres_transformation() {
         let mut s = Object::sphere();
+        let uuid = s.uuid;
         let t = Transform::translation(2., 3., 4.);
         s.set_transform(t);
         assert_eq!(
@@ -171,7 +209,8 @@ mod tests {
             Object {
                 shape: Shape::Sphere,
                 transform: t,
-                material: Material::default()
+                material: Material::default(),
+                uuid
             }
         )
     }
@@ -293,7 +332,7 @@ mod tests {
         let Intersections(xs) = p.intersect(r);
         assert_eq!(xs.len(), 1);
         assert_eq!(xs[0].t, 1.);
-        assert_eq!(xs[0].object, p);
+        assert_eq!(xs[0].object, &p);
     }
 
     #[test]
@@ -306,6 +345,6 @@ mod tests {
         let Intersections(xs) = p.intersect(r);
         assert_eq!(xs.len(), 1);
         assert_eq!(xs[0].t, 1.);
-        assert_eq!(xs[0].object, p);
+        assert_eq!(xs[0].object, &p);
     }
 }

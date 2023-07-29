@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul, Sub};
 
-use image::{ImageBuffer, Rgb, RgbImage};
+use image::{Rgb, RgbImage};
 
 use crate::macros::AlmostEq;
 
@@ -55,6 +55,10 @@ impl From<Color> for Rgb<u8> {
     }
 }
 
+fn f64_to_u8(c: f64) -> u8 {
+    ((c * 255.).round() as u8).clamp(0, 255)
+}
+
 impl From<Rgb<u8>> for Color {
     fn from(value: Rgb<u8>) -> Self {
         let [r, g, b] = value.0;
@@ -84,22 +88,31 @@ impl Color {
 }
 
 pub struct Canvas {
-    pixels: RgbImage,
-    width: u32,
-    height: u32,
+    pixels: Vec<f64>,
+    width: usize,
+    height: usize,
 }
 
 impl Canvas {
-    pub fn new(width: u32, height: u32, color: Option<Color>) -> Self {
-        let mut pixels = ImageBuffer::new(width, height);
+    pub fn new(width: usize, height: usize, color: Option<Color>) -> Self {
+        let mut pixels = vec![0.; width * height * 3];
         match color {
             None => {}
             Some(color) => {
-                for j in 0..height {
-                    for i in 0..width {
-                        pixels.put_pixel(i, j, Rgb::from(color));
-                    }
-                }
+                let Color(r, g, b) = color;
+                // pixels.iter_mut().enumerate().for_each(|(i, e)| {
+                //     if i % 3 == 0 {
+                //         *e = r
+                //     } else if i % 3 == 1 {
+                //         *e = g
+                //     } else {
+                //         *e = b
+                //     }
+                // });
+                pixels.chunks_exact_mut(3).for_each(|e| {
+                    let [x,y,z] = e else {panic!("Chunk size problem")};
+                    [*x, *y, *z] = [r, g, b]
+                });
             }
         }
         Self {
@@ -109,16 +122,22 @@ impl Canvas {
         }
     }
 
-    pub fn write_pixel(&mut self, x: u32, y: u32, color: Color) {
-        self.pixels.put_pixel(x, y, Rgb::from(color));
+    pub fn write_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let Color(r, g, b) = color;
+        self.pixels[(y * self.width + x) * 3..(y * self.width + x + 1) * 3]
+            .copy_from_slice(&[r, g, b]);
     }
 
-    pub fn pixel_at(&self, x: u32, y: u32) -> Color {
-        Color::from(self.pixels[(x, y)])
+    pub fn pixel_at(&self, x: usize, y: usize) -> Color {
+        let [r,g,b] =
+            self.pixels[(y * self.width + x) * 3..(y * self.width + x + 1) * 3] else {panic!("Problem !!")};
+        Color(r, g, b)
     }
 
     pub fn save(&self, path: &str) -> image::ImageResult<()> {
-        self.pixels.save(path)
+        let buf: Vec<u8> = self.pixels.iter().map(|pix| f64_to_u8(*pix)).collect();
+        let image = RgbImage::from_vec(self.width as u32, self.height as u32, buf).unwrap();
+        image.save(path)
     }
 }
 
